@@ -15,7 +15,7 @@ thematic::thematic_shiny()
 tab1 <- fillPage(
   
   tags$style(HTML("
-      # dataTable_div{
+      # data_preview_div{
       overflox-x: auto;
       
       }
@@ -24,7 +24,7 @@ tab1 <- fillPage(
   
   # HTML5 Section with a DataTable output
   
-  div(id = 'dataTable_div',DTOutput('dataTable'))
+  div(id = 'data_preview_div',tableOutput('data_preview'))
 )
 
 # Tab 2
@@ -149,7 +149,7 @@ sidebar_main <- sidebar(
   
   # HTML5 Section for file upload
   tags$section(
-    fileInput("upload", "Wybierz plik CSV", accept = ".csv",buttonLabel = "Wybierz...",placeholder = 'Nie wybrano pliku'),
+    fileInput("upload_data", "Wybierz plik CSV", accept = ".csv",buttonLabel = "Wybierz...",placeholder = 'Nie wybrano pliku'),
     selectInput("sep", "Wybierz separator:",
                 choices = c("Przecinek" = ",", "Średnik" = ";", "Tabulacja" = "\t")),
     checkboxInput("header", "Nagłówek", TRUE)
@@ -206,9 +206,6 @@ sidebar_main <- sidebar(
 
 navbarPage(
   title = HTML("VibeCheck🔎"),
-  theme = bs_theme(
-    preset = "minty"
-  ),
   underline = TRUE,
   sidebar = sidebar_main,
   padding = 0,
