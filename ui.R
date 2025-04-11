@@ -24,7 +24,7 @@ tab1 <- fillPage(
   
   # HTML5 Section with a DataTable output
   
-  div(id = 'data_preview_div',tableOutput('data_preview'))
+  div(id = 'data_preview_div',DTOutput('data_preview'))
 )
 
 # Tab 2
