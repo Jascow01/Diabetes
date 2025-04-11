@@ -4,9 +4,19 @@ library(shinyWidgets)
 library(DT)
 library(RPostgres)
 library(DBI)
-library(odbc)
+library(pool)
+library(dplyr)
+library(dbplyr)
+pool <- dbPool(
+  RPostgres::Postgres(),
+  dbname = "postgres",
+  host = "postgres-1.cy76oqy82sx8.us-east-1.rds.amazonaws.com",
+  port = 5432,
+  user = "postgres",
+  password = "Kbjsdkoa1kl"
+)
 
-con <- dbConnect(odbc::odbc(),"PostgreSQL35W")
+pool %>% tbl("diabets") %>% head()
 
 
 server <- function(input, output, session) {
