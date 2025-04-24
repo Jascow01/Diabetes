@@ -17,34 +17,93 @@ server <- function(input, output, session) {
   
   model_trained <- reactiveVal(FALSE)
   
-  my_db <- dbPool(
-    RPostgres::Postgres(),
-    dbname = "diabetes",
-    host = "localhost",
-    port = 5432,
-    user = "postgres",
-    password = "kbjsdkoa1@"
-  )
+  # Reactive value to store the DB pool
+    rv <- reactiveValues(db_pool = NULL, tables = NULL, selected_table = NULL)
+    
+    observeEvent(input$connect_db, {
+      req(input$db_user, input$db_password)
+      
+      tryCatch({
+        pool <- dbPool(
+          RPostgres::Postgres(),
+          dbname = "diabetes",
+          host = "localhost",
+          port = 5432,
+          user = input$db_user,
+          password = input$db_password
+        )
+        
+        # test połączenia
+        dbGetQuery(pool, "SELECT 1")
+        
+        rv$db_pool <- pool
+        rv$tables <- dbListTables(pool)
+        
+        showNotification("✅ Połączono z bazą danych", type = "message")
+        
+      }, error = function(e) {
+        rv$db_pool <- NULL
+        rv$tables <- NULL
+        showNotification(paste("❌ Błąd połączenia:", e$message), type = "error")
+      })
+    })
+    
+    output$db_status <- renderUI({
+      if (!is.null(rv$db_pool)) {
+        span("🟢 Połączono z bazą danych", style = "color:green;")
+      } else {
+        span("🔴 Brak połączenia", style = "color:red;")
+      }
+    })
+    
+    output$table_select_ui <- renderUI({
+      req(rv$tables)
+      selectInput("selected_table", "Wybierz tabelę do załadowania:", choices = rv$tables)
+    })
+    
+    observeEvent(input$load_table, {
+      req(input$selected_table, rv$db_pool)
+      
+      tryCatch({
+        df <- dbGetQuery(rv$db_pool, paste0("SELECT * FROM ", dbQuoteIdentifier(rv$db_pool, input$selected_table)))
+        rv$selected_table <- df
+      }, error = function(e) {
+        showNotification(paste("❌ Nie udało się załadować tabeli:", e$message), type = "error")
+        rv$selected_table <- NULL
+      })
+    })
+    
+    output$data_preview <- renderDT({
+      req(rv$selected_table)
+      datatable(rv$selected_table)
+    })
+    
+    onStop(function() {
+      if (!is.null(rv$db_pool)) poolClose(rv$db_pool)
+    })
+  
+  
 
-  
-  onStop(function() {
-    poolClose(my_db)
-  })
-  
-  data_from_db <- reactive({
-    #req(input$some_trigger)  # opcjonalnie, np. przycisk "Wczytaj dane"
-    dbGetQuery(my_db, "SELECT * FROM diabetes_prediction")
-  })
   
   
   #### Database Connection - TABLE PREVIEW ####
   
     output$data_preview <- renderDT({
-      datatable(my_db %>% 
-                tbl("diabetes_prediction") %>% 
-                  as.data.frame() 
-                )  
+      tryCatch({
+        req(rv$db_pool, input$selected_table)  # Sprawdzenie: połączenie + wybrana tabela
+        
+        df <- dbGetQuery(rv$db_pool, paste0("SELECT * FROM ", DBI::dbQuoteIdentifier(rv$db_pool, input$selected_table)))
+        datatable(df)
+        
+      }, error = function(e) {
+        datatable(
+          data.frame(Komunikat = "❌ Błąd połączenia z bazą danych lub problem z wczytaniem tabeli."),
+          options = list(dom = 't'),
+          rownames = FALSE
+        )
+      })
     })
+    
     
   
   #### budowa modelu ####
@@ -52,10 +111,9 @@ server <- function(input, output, session) {
   
   # wybór zmiennej objaśnianej
   output$var_select <- renderUI({
-    df <- data_from_db()
-    req(df)
+    req(rv$selected_table)
     
-    vars <- names(df)
+    vars <- names(rv$selected_table)
     
     tagList(
       selectInput("target_var", "Wybierz zmienną objaśnianą:", choices = vars)
@@ -66,10 +124,9 @@ server <- function(input, output, session) {
   # Zmienne do wykluczenia
   
   output$exclude_vars <- renderUI({ 
-    df <- data_from_db()
-    req(df, input$target_var)
+    req(rv$selected_table, input$target_var)
     
-    vars <- df %>%
+    vars <- rv$selected_table %>%
       select(!c(input$target_var)) %>%
       names()
     
@@ -80,14 +137,20 @@ server <- function(input, output, session) {
   # Trening modelu na podstawie wyboru użytkownika
   model <- eventReactive(input$train_button, {
     cat("Kliknięto train_button! Uruchamiam model...\n")
-    df <- data_from_db()
+    #df <- data_from_db()
     cat("xd \n")
-    req(df, input$target_var ,input$model_type)
+    req(rv$selected_table, input$target_var ,input$model_type)
     
+    df <- rv$selected_table
     target <- input$target_var
-    target
-    #cat("xdddd \n")
-    #cat("Podstawienie za target...\n")
+    
+    # Sprawdzenie, czy zmienna objaśniana jest typu factor
+    
+    if (!is.factor(df[[target]])) {
+      df[[target]] <- as.factor(df[[target]])
+    }
+    
+    
     showPageSpinner(caption = 'Budowanie modelu. Proszę czekać.',color = "#f3969a")
     split <- initial_split(df, strata = target)
     train_data <- training(split)

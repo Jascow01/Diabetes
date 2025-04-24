@@ -143,7 +143,17 @@ sidebar_main <- sidebar(
   # HTML5 Header
   tags$header(
     style = "display: flex; justify-content: center; align-items: center;",
-    titlePanel(HTML("<b>Prześlij plik</b>"))
+    titlePanel(HTML("<b>Zaloguj do bazy</b>"))
+  ),
+  
+  tags$section(
+    textInput("db_user", "Użytkownik bazy danych:"),
+    passwordInput("db_password", "Hasło do bazy danych:"),
+    actionButton("connect_db", "Połącz z bazą danych"),
+    uiOutput("db_status"),
+    fileInput("csv_file", "Lub załaduj plik CSV:", accept = ".csv"),
+    uiOutput("table_select_ui"),
+    actionButton("load_table", "Załaduj tabelę")
   ),
   
   # HTML5 Section for file upload
