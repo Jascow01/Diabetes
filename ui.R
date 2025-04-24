@@ -113,11 +113,10 @@ tab_m1 <- fillPage(
       width = 350,
       uiOutput("var_select"),
       uiOutput("exclude_vars"),
-      sliderInput("split","", min = 0.05, max = 0.95, step = 0.01, value = 0.8),
-      sliderInput("max_tokens","Maksymalna liczba tokenów", min = 100, max = 1000, step = 50, value = 600),
+      sliderInput("split","", min = 0.05, max = 0.95, step = 0.05, value = 0.8),
       selectInput("model_type", "Wybierz model:",
                   choices = c("Random Forest")),
-      actionButton("train", "Trenuj Model"),
+      actionButton("train_button", "Trenuj Model"),
       verbatimTextOutput("model_output"),
     ),
     # Conditional panel that only shows after the model is trained
