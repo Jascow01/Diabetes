@@ -93,8 +93,8 @@ exploration <- page_fillable(
   navset_card_underline(
     title = HTML("<span style='font-size:100%; font-weight:bold;'>Eksploracja Danych</span>"),
     nav_panel("Ramka danych", tab1), # data browse and imputation
-    nav_panel("Statystyki", tab2), # data description, variable statistics
-    nav_panel("Wizualizacja", tab3) # distributions, boxplots, dependecies 
+    #nav_panel("Statystyki", tab2), # data description, variable statistics
+    #nav_panel("Wizualizacja", tab3) # distributions, boxplots, dependecies 
   ),
   theme = bs_theme(
     preset = "pulse"
@@ -115,7 +115,7 @@ tab_m1 <- fillPage(
       uiOutput("exclude_vars"),
       sliderInput("split","", min = 0.05, max = 0.95, step = 0.05, value = 0.8),
       selectInput("model_type", "Wybierz model:",
-                  choices = c("Random Forest")),
+                  choices = c("Random Forest","Decision Tree")),
       actionButton("train_button", "Trenuj Model"),
       verbatimTextOutput("model_output"),
     ),
@@ -149,20 +149,23 @@ sidebar_main <- sidebar(
   tags$section(
     textInput("db_user", "Użytkownik bazy danych:"),
     passwordInput("db_password", "Hasło do bazy danych:"),
-    actionButton("connect_db", "Połącz z bazą danych"),
+    tags$div(
+      style = "display: flex; justify-content: center;",
+      actionButton("connect_db", "Połącz z bazą danych")
+    ),
     uiOutput("db_status"),
     fileInput("csv_file", "Lub załaduj plik CSV:", accept = ".csv"),
-    uiOutput("table_select_ui"),
-    actionButton("load_table", "Załaduj tabelę")
+    uiOutput("table_select_ui")
+
   ),
   
-  # HTML5 Section for file upload
-  tags$section(
-    fileInput("upload_data", "Wybierz plik CSV", accept = ".csv",buttonLabel = "Wybierz...",placeholder = 'Nie wybrano pliku'),
-    selectInput("sep", "Wybierz separator:",
-                choices = c("Przecinek" = ",", "Średnik" = ";", "Tabulacja" = "\t")),
-    checkboxInput("header", "Nagłówek", TRUE)
-  ),
+   # HTML5 Section for file upload
+#  tags$section(
+#    fileInput("upload_data", "Wybierz plik CSV", accept = ".csv",buttonLabel = "Wybierz...",placeholder = 'Nie wybrano pliku'),
+#    selectInput("sep", "Wybierz separator:",
+#                choices = c("Przecinek" = ",", "Średnik" = ";", "Tabulacja" = "\t")),
+#    checkboxInput("header", "Nagłówek", TRUE)
+#  ),
   
   # HTML5 Section for summary and variable actions
   tags$section(
@@ -182,13 +185,8 @@ sidebar_main <- sidebar(
     ),
     
     hr(),
-    selectInput("cleanTextVar", tags$b("Wybierz zmienną tekstową do wyczyszczenia"), choices = NULL),
     
     # Centering button using a div and CSS flexbox
-    tags$div(
-      style = "display: flex; justify-content: center;",
-      actionButton("cleanText", "Wyczyść tekst")
-    )
   ),
   
   # HTML5 Section for handling missing data
@@ -205,7 +203,7 @@ sidebar_main <- sidebar(
   
   # HTML5 Footer
   tags$footer(
-    "Autor: Szymon Dufek"
+    #"Autor: Szymon Dufek"
   )
 )
 
@@ -214,7 +212,7 @@ sidebar_main <- sidebar(
 #===============================================================================
 
 navbarPage(
-  title = HTML("VibeCheck🔎"),
+  title = HTML("Diabetes 🍬"),
   underline = TRUE,
   sidebar = sidebar_main,
   padding = 0,
