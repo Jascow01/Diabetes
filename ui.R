@@ -113,9 +113,8 @@ tab_m1 <- fillPage(
       width = 350,
       uiOutput("var_select"),
       uiOutput("exclude_vars"),
-      sliderInput("split","", min = 0.05, max = 0.95, step = 0.05, value = 0.8),
-      selectInput("model_type", "Wybierz model:",
-                  choices = c("Random Forest","Decision Tree")),
+      sliderInput("split", tags$b("Podział zbioru do uczenia"), min = 0.05, max = 0.95, step = 0.05, value = 0.8),
+      selectInput("model_type", "Wybierz model:", choices = c("Random Forest","Decision Tree")),
       actionButton("train_button", "Trenuj Model"),
       verbatimTextOutput("model_output"),
     ),
@@ -154,10 +153,15 @@ sidebar_main <- sidebar(
       actionButton("connect_db", "Połącz z bazą danych")
     ),
     uiOutput("db_status"),
-    fileInput("csv_file", "Lub załaduj plik CSV:", accept = ".csv"),
-    uiOutput("table_select_ui")
-
+    uiOutput("table_select_ui"),
+    hr()
   ),
+  
+  tags$section(
+    style = "display: flex; justify-content: center;",
+    hr(),
+    fileInput("csv_file", "Lub załaduj plik CSV:", accept = ".csv")
+    ),
   
    # HTML5 Section for file upload
 #  tags$section(
@@ -200,7 +204,6 @@ sidebar_main <- sidebar(
       actionButton("handleMissingData", "Zastosuj akcję")
     )
   ),
-  
   # HTML5 Footer
   tags$footer(
     #"Autor: Szymon Dufek"
