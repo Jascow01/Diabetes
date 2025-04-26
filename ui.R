@@ -123,15 +123,40 @@ tab_m1 <- fillPage(
   )
 )
 
+tab_m2 <- fillPage(
+  layout_sidebar(
+    sidebar = sidebar(
+      open = T,
+      width = 350,
+      radioButtons("gender", "Płeć:", c("Mężczyzna" = 0, "Kobieta" = 1)),
+      radioButtons("age", "Wiek:", choices =  c("0-13", "14-18", "19-24", "25-34", "35-44", "45-59", "60+")),
+      radioButtons("hypertension", "Nadciśnienie:", choices = c(0, 1)),
+      radioButtons("heart_disease", "Choroba serca:", choices = c(0, 1)),
+      radioButtons("smoking_history", "Historia palenia:", 
+                  choices = c("current","ever","former","never","No Info","not current")),
+      #numericInput("bmi", "BMI:", value = 25),
+      numericInput("hba1c", "HbA1c:", value = 5.5),
+      numericInput("glucose", "Poziom glukozy:", value = 100),
+      actionButton("predict_btn", "Przewiduj")
+    ),
+    img(src="widetime2.gif", align = "left",height='250px',width='500px'),
+    h3("Wynik predykcji:"),
+    verbatimTextOutput("prediction_result")
+  )
+)
+
 page2 <- page_fillable(
   navset_card_underline(
     title = HTML("<span style='font-size:100%; font-weight:bold;'>Model</span>"),
     nav_panel("Tworzenie", tab_m1),
+    nav_panel("Predykcja", tab_m2)
   ),
   theme = bs_theme(
     preset = "minty"
   )
 )
+
+
 
 #===============================================================================
 # Sidebar

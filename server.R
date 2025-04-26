@@ -15,6 +15,8 @@ library(vip)
 
 options(shiny.maxRequestSize = 30 * 1024^2)
 
+dec_tree <- readRDS("decision_tree.rds")
+
 server <- function(input, output, session) {
   
   model_trained <- reactiveVal(FALSE)
@@ -148,9 +150,9 @@ server <- function(input, output, session) {
     #})
     
     
-    onStop(function() {
-      if (!is.null(rv$db_pool)) poolClose(rv$db_pool)
-    })
+   # onStop(function() {
+   #   if (!is.null(rv$db_pool)) poolClose(rv$db_pool)
+  #  })
     
     
   #############################################################
@@ -334,6 +336,48 @@ server <- function(input, output, session) {
         model()
       })
     
+      
+      #####################################
+      ############## PREDYKCJA ############
+      #####################################
+      
+      # ReactiveVal na wynik predykcji lub gif
+      prediction_result <- reactiveVal(NULL)
+      
+      # Obsługa kliknięcia przycisku PREDYKCJI
+      observeEvent(input$predict_btn, {
+        
+        # Najpierw ustawiamy ikonę lub gifa jako tymczasowy wynik
+        prediction_result(
+          tags$img(src = "widetime2.gif", width = "200px", alt = "Czekaj na wynik...")
+        )
+        
+        # Dane od użytkownika
+        new_data <- data.frame(
+          gender = factor(input$gender, levels = c("0", "1")),
+          age = factor(input$age, levels = c("0-13", "14-18", "19-24", "25-34", "35-44", "45-59", "60+")),
+          hypertension = factor(input$hypertension, levels = c(0, 1)),
+          heart_disease = factor(input$heart_disease, levels = c(0, 1)),
+          smoking_history = factor(input$smoking_history,
+                                   levels = c("current","ever","former","never","No Info","not current")),
+          HbA1c_level = input$hba1c,
+          blood_glucose_level = input$glucose
+        )
+        
+        # Predykcja
+        prediction <- predict(dec_tree, new_data = new_data, type = "class")
+        
+        # Po otrzymaniu predykcji aktualizujemy wynik
+        prediction_result(
+          tags$h3(paste("✅ Model przewiduje:", as.character(prediction$.pred_class)))
+        )
+      })
+      
+      # Wyświetlenie prediction_result (gif lub wynik)
+      output$prediction_result <- renderUI({
+        prediction_result()
+      })
+      
   
   
 }
