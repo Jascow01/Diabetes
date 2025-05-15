@@ -68,12 +68,11 @@ server <- function(input, output, session) {
   # Wyświetlanie dostępnych tabel po połączeniu z bazą
   output$table_select_ui <- renderUI({
     req(rv$tables)
-    
     tags$section(
       selectInput("selected_table", "Wybierz tabelę z bazy danych:", choices = rv$tables),
       tags$div(
         style= "display: flex; justify-content: center; align-items: center; padding-top: 10px; padding-bottom: 10px;",
-        actionButton("load_table", "Załaduj tabelę")
+        input_task_button("load_table", "Załaduj tabelę")
       )
     )
     
@@ -125,19 +124,29 @@ server <- function(input, output, session) {
   
     
     
-    # Wyświetlanie podglądu danych z pliku CSV lub tabeli w bazie
-    output$data_preview <- renderDT({
-      tryCatch({
-        req(rv$data)  # tylko jeśli dane zostały wczytane
-        datatable(rv$data)
-      }, error = function(e) {
-        datatable(
-          data.frame(Komunikat = "❌ Błąd wczytywania danych."),
-          options = list(dom = 't'),
-          rownames = FALSE
-        )
-      })
+  output$data_preview <- renderUI({
+    tryCatch({
+      req(rv$data)
+      DTOutput("actual_data_preview")
+    }, error = function(e) {
+      tags$img(
+        src = "no-data.jpg",
+        style = "
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        width: auto;
+        height: auto;
+        display: block;
+      "
+      )
     })
+  })
+  
+  # Właściwe dane renderujemy osobno
+  output$actual_data_preview <- renderDT({
+    datatable(rv$data)
+  })
     
     
     
@@ -153,6 +162,46 @@ server <- function(input, output, session) {
    # onStop(function() {
    #   if (!is.null(rv$db_pool)) poolClose(rv$db_pool)
   #  })
+  
+  
+  
+  output$training_ui_wrapper <- renderUI({
+    tryCatch({
+      req(rv$data)
+      layout_sidebar(
+        sidebar = sidebar(
+          open = "open",
+          style = "background-color: #fafafa; padding: 20px; border-radius: 10px;",
+          width = 350,
+          
+          uiOutput("var_select"),
+          uiOutput("exclude_vars"),
+          sliderInput("split", tags$b("Podział zbioru do uczenia"), min = 0.05, max = 0.95, step = 0.05, value = 0.8),
+          selectInput("model_type", "Wybierz model:", choices = c("Random Forest","Decision Tree")),
+          input_task_button("train_button", "Trenuj Model", class = "btn-centered"),
+          verbatimTextOutput("model_output")
+        ),
+        uiOutput("model_output_ui")
+      )
+    }, error = function(e){
+      div(
+        class = 'preview_class',
+        style = "display: flex; 
+          justify-content: center; 
+          align-items: center; 
+          height: calc(100vh - 250px);",
+        tags$img(src = "no-data2.jpg", 
+                 style = "max-width: 80%; 
+                 max-height: 80%; 
+                 object-fit: contain;")
+      )
+    })
+  })
+  
+  
+  
+  
+  
     
     
   #############################################################
@@ -281,11 +330,29 @@ server <- function(input, output, session) {
       
       showPageSpinner("Tworzenie wyników...", color = "#f3969a")
       
-      output$metricsDT <- renderDT({
-        sentiment_final %>%
+      output$metricsDT <- renderUI({
+        metrics <- sentiment_final %>%
           collect_metrics() %>%
-          datatable()
+          filter(.metric %in% c("accuracy", "roc_auc")) %>%
+          select(.metric, .estimate)
+        
+        accuracy_val <- metrics %>% filter(.metric == "accuracy") %>% pull(.estimate)
+        roc_auc_val <- metrics %>% filter(.metric == "roc_auc") %>% pull(.estimate)
+        
+        tagList(
+          tags$p(tags$b("Accuracy:"), sprintf("%.3f", accuracy_val)),
+          tags$p(tags$b("ROC AUC:"), sprintf("%.3f", roc_auc_val))
+        )
       })
+      
+      output$rocPlot <- renderPlot({
+        sentiment_final %>%
+          collect_predictions() %>%
+          roc_curve(truth = outcome, .pred_1) %>% 
+          autoplot()
+      })
+      
+      
       
       output$confMatrix <- renderPlot({
         sentiment_final %>%
@@ -310,20 +377,29 @@ server <- function(input, output, session) {
       
       output$model_output_ui <- renderUI({
         layout_columns(
-          card(card_header('Metryki'),
-               card_body(DTOutput('metricsDT'))
+          value_box(
+            title = "Metryki",
+            fullscreen = TRUE,
+            uiOutput('metricsDT'),  # ← zamieniamy DTOutput na uiOutput
+            theme_color = "primary"
           ),
-          card(card_header('Macierz trafności'),
-               card_body(plotOutput('confMatrix'))
+          value_box(
+            title = "Macierz trafności",
+            fullscreen = TRUE,
+            plotOutput('confMatrix'),
+            theme_color = "secondary"
           ),
-          card(card_header(ifelse(input$model_type == "Random Forest",
-                                  'Ważność zmiennych',
-                                  'Drzewo decyzyjne')),
-               card_body(plotOutput('varImportance'))
+          value_box(
+            title = ifelse(input$model_type == "Random Forest", "Ważność zmiennych", "Drzewo decyzyjne"),
+            fullscreen = TRUE,
+            plotOutput('varImportance'),
+            theme_color = "success"
           ),
           col_widths = c(12, 6, 6)
         )
       })
+      
+      
       
       hidePageSpinner()
       model_trained(TRUE)
@@ -342,15 +418,23 @@ server <- function(input, output, session) {
       #####################################
       
       # ReactiveVal na wynik predykcji lub gif
-      prediction_result <- reactiveVal(NULL)
+      prediction_result <- reactiveVal(
+        tags$img(
+          src = "no-form.jpg",
+          style = "
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      margin: auto;
+    "
+        )
+      )
+      
       
       # Obsługa kliknięcia przycisku PREDYKCJI
+      # Obsługa kliknięcia przycisku PREDYKCJI
       observeEvent(input$predict_btn, {
-        
-        # Najpierw ustawiamy ikonę lub gifa jako tymczasowy wynik
-        prediction_result(
-          tags$img(src = "widetime2.gif", width = "200px", alt = "Czekaj na wynik...")
-        )
         
         # Dane od użytkownika
         new_data <- data.frame(
@@ -359,24 +443,43 @@ server <- function(input, output, session) {
           hypertension = factor(input$hypertension, levels = c(0, 1)),
           heart_disease = factor(input$heart_disease, levels = c(0, 1)),
           smoking_history = factor(input$smoking_history,
-                                   levels = c("current","ever","former","never","No Info","not current")),
+                                   levels = c("current", "ever", "former", "never", "No Info", "not current")),
           HbA1c_level = input$hba1c,
           blood_glucose_level = input$glucose
         )
         
         # Predykcja
         prediction <- predict(dec_tree, new_data = new_data, type = "class")
+        pred_class <- as.character(prediction$.pred_class)
         
-        # Po otrzymaniu predykcji aktualizujemy wynik
-        prediction_result(
-          tags$h3(paste("✅ Model przewiduje:", as.character(prediction$.pred_class)))
-        )
+        # Treść w zależności od predykcji
+        if (pred_class == "1") {
+          prediction_result(
+            tagList(
+              tags$h3("⚠️ Możliwe ryzyko cukrzycy", style = "color: #c0392b; text-align: center; margin-bottom: 15px;"),
+              tags$p("Na podstawie podanych danych model wskazuje na możliwość wystąpienia cukrzycy.", style = "text-align: center;"),
+              tags$p("Zalecamy skonsultowanie się z lekarzem oraz wykonanie dodatkowych badań.", style = "text-align: center;"),
+              tags$div(style = "text-align: center; margin-top: 20px;",
+                       tags$a("👉 Przeczytaj więcej na pacjent.gov.pl", href = "https://pacjent.gov.pl/aktualnosc/cukrzyca-jak-jej-zapobiec", target = "_blank", class = "btn btn-danger", style = "font-weight: bold; padding: 10px 20px;")
+              )
+            )
+          )
+        } else {
+          prediction_result(
+            tagList(
+              tags$h3("✅ Brak wskazań cukrzycy", style = "color: #27ae60; text-align: center; margin-bottom: 15px;"),
+              tags$p("Model nie wykazuje cech świadczących o cukrzycy na podstawie dostarczonych danych.", style = "text-align: center;"),
+              tags$p("Pamiętaj jednak o zdrowym stylu życia, aktywności fizycznej oraz regularnych badaniach.", style = "text-align: center;")
+            )
+          )
+        }
       })
       
-      # Wyświetlenie prediction_result (gif lub wynik)
+      # Wyświetlenie prediction_result (informacja o predykcji)
       output$prediction_result <- renderUI({
         prediction_result()
       })
+      
       
   
   
