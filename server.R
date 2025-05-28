@@ -11,6 +11,8 @@ library(tidymodels)
 library(shinycssloaders)
 library(rpart.plot)
 
+
+
 library(vip)
 
 options(shiny.maxRequestSize = 30 * 1024^2)
@@ -127,7 +129,35 @@ server <- function(input, output, session) {
   output$data_preview <- renderUI({
     tryCatch({
       req(rv$data)
-      DTOutput("actual_data_preview")
+      
+      layout_column_wrap(
+        width = "100%",
+        fill = FALSE,
+        heights_equal = "row",
+        card(
+          full_screen = TRUE,
+          card_body(
+            DTOutput("actual_data_preview", width = "100%")
+          )
+        ),
+        
+        layout_column_wrap(
+          width = 1/2,
+            card(
+              card_body(
+                tags$h5("Typy zmiennych"),
+                DTOutput("varTypeTable", width = "100%")
+              )
+            ),
+            card(
+              card_body(
+                tags$h5("Braki danych"),
+                DTOutput("missingDataTable", width = "100%")
+              )
+            )
+          )
+        
+      )
     }, error = function(e) {
       tags$img(
         src = "no-data.jpg",
@@ -138,16 +168,64 @@ server <- function(input, output, session) {
         width: auto;
         height: auto;
         display: block;
+        margin: auto;
       "
       )
     })
   })
   
+  
+  
   # Właściwe dane renderujemy osobno
   output$actual_data_preview <- renderDT({
     datatable(rv$data)
   })
+  
+  
+  output$varTypeTable <- renderDT({
+    req(rv$data)
     
+    data.frame(
+      Zmienna = names(rv$data),
+      Typ = sapply(rv$data, function(col) class(col)[1]),
+      check.names = FALSE
+    ) %>%
+      datatable(
+        rownames = FALSE,
+        options = list(dom = 't', pageLength = nrow(rv$data), autoWidth = TRUE)
+      )
+  })
+  
+  output$missingDataTable <- renderDT({
+    req(rv$data)
+    
+    df <- rv$data
+    
+    missing_info <- data.frame(
+      Zmienna = names(df),
+      Braki = sapply(df, function(x) sum(is.na(x))),
+      check.names = FALSE
+    )
+    
+    datatable(
+      missing_info,
+      rownames = FALSE,
+      options = list(dom = 't', pageLength = nrow(missing_info), autoWidth = TRUE)
+    )
+  })
+  
+  
+  
+  
+  observeEvent(input$handleMissingData, {
+    req(rv$data)
+    
+    if (input$missingDataAction == "Usuń rekordy") {
+      rv$data <- rv$data[complete.cases(rv$data), ]
+      showNotification("Usunięto wszystkie rekordy zawierające braki danych.", type = "message")
+    }
+  })
+  
     
     
     #observe({
@@ -177,7 +255,7 @@ server <- function(input, output, session) {
           uiOutput("var_select"),
           uiOutput("exclude_vars"),
           sliderInput("split", tags$b("Podział zbioru do uczenia"), min = 0.05, max = 0.95, step = 0.05, value = 0.8),
-          selectInput("model_type", "Wybierz model:", choices = c("Random Forest","Decision Tree")),
+          selectInput("model_type", tags$b("Wybierz model:"), choices = c("Random Forest","Decision Tree")),
           input_task_button("train_button", "Trenuj Model", class = "btn-centered"),
           verbatimTextOutput("model_output")
         ),
@@ -223,7 +301,9 @@ server <- function(input, output, session) {
       vars <- names(df)
       
       tagList(
-        selectInput("target_var", "Wybierz zmienną objaśnianą:", choices = vars)
+        selectInput("target_var", 
+                    tags$b("Wybierz zmienną objaśnianą:"),
+                    choices = vars)
       )
     })
     
@@ -232,23 +312,35 @@ server <- function(input, output, session) {
   
   # Zmienne do wykluczenia
  
-    output$exclude_vars <- renderUI({ 
-      req(input$target_var)
-      
-      df <- if (!is.null(rv$data)) {
-        rv$data
-      } else if (!is.null(rv$selected_table)) {
-        rv$selected_table
-      } else {
-        return(NULL)
-      }
-      
-      vars <- df %>%
-        select(-input$target_var) %>%
-        names()
-      
-      checkboxGroupInput("vars_to_exclude", "Wybierz zmienne do wykluczenia:", choices = vars)
-    })
+  output$exclude_vars <- renderUI({ 
+    req(input$target_var)
+    
+    df <- if (!is.null(rv$data)) {
+      rv$data
+    } else if (!is.null(rv$selected_table)) {
+      rv$selected_table
+    } else {
+      return(NULL)
+    }
+    
+    vars <- df %>%
+      select(-input$target_var) %>%
+      names()
+    
+    tagList(
+      tags$label(
+        tags$b("Wybierz zmienne do wykluczenia: "),
+        tags$span(
+          icon("circle-question"),
+          title = "Te zmienne nie będą brane pod uwagę przy tworzeniu modelu predykcyjnego.",
+          `data-bs-toggle` = "tooltip",
+          style = "cursor: help; color: #0d6efd; margin-left: 5px;"
+        )
+      ),
+      checkboxGroupInput("vars_to_exclude", label = NULL, choices = vars)
+    )
+  })
+  
     
   
     
