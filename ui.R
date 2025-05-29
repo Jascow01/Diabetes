@@ -150,12 +150,6 @@ sidebar_main <- sidebar(
           title = tagList(icon("edit"), " Edycja danych"),
           value = "edycja",
           card_body(
-            #style = "background-color: #fce444;",
-            
-            selectInput("selectedVar", tags$b("Wybierz zmienną do zmiany typu"), choices = NULL),
-            selectInput("newVarType", "Wybierz nowy typ", choices = c("numeric", "character", "factor")),
-            input_task_button("changeVarType", "Zmień typ zmiennej", class = "btn-centered"),
-            hr(),
             selectInput("missingDataAction", tags$b("Wybierz akcję dla braków danych"), choices = c("Usuń rekordy")),
             input_task_button("handleMissingData", "Zastosuj akcję", class = "btn-centered")
           )

@@ -21,9 +21,13 @@ dec_tree <- readRDS("decision_tree.rds")
 
 server <- function(input, output, session) {
   
+  training_started <- reactiveVal(FALSE)
   model_trained <- reactiveVal(FALSE)
+  
   # Reactive value to store the DB pool
   rv <- reactiveValues(db_pool = NULL, tables = NULL, selected_table = NULL, data = NULL)
+  
+  
   
   ##############################################
   ########### Połączenie z bazą danych #########
@@ -174,8 +178,7 @@ server <- function(input, output, session) {
     })
   })
   
-  
-  
+
   # Właściwe dane renderujemy osobno
   output$actual_data_preview <- renderDT({
     datatable(rv$data)
@@ -195,6 +198,7 @@ server <- function(input, output, session) {
         options = list(dom = 't', pageLength = nrow(rv$data), autoWidth = TRUE)
       )
   })
+  
   
   output$missingDataTable <- renderDT({
     req(rv$data)
@@ -349,6 +353,10 @@ server <- function(input, output, session) {
     model <- eventReactive(input$train_button, {
       req(input$target_var, input$model_type)
       
+      # flagi
+      training_started(TRUE)
+      model_trained(FALSE)  # reset trained status
+      
       # Wybór źródła danych
       df <- if (!is.null(rv$data)) rv$data else rv$selected_table
       target <- input$target_var
@@ -466,33 +474,7 @@ server <- function(input, output, session) {
           rpart.plot::rpart.plot(final_model$fit, type = 2)
         }
       })
-      
-      output$model_output_ui <- renderUI({
-        layout_columns(
-          value_box(
-            title = "Metryki",
-            fullscreen = TRUE,
-            uiOutput('metricsDT'),  # ← zamieniamy DTOutput na uiOutput
-            theme_color = "primary"
-          ),
-          value_box(
-            title = "Macierz trafności",
-            fullscreen = TRUE,
-            plotOutput('confMatrix'),
-            theme_color = "secondary"
-          ),
-          value_box(
-            title = ifelse(input$model_type == "Random Forest", "Ważność zmiennych", "Drzewo decyzyjne"),
-            fullscreen = TRUE,
-            plotOutput('varImportance'),
-            theme_color = "success"
-          ),
-          col_widths = c(12, 6, 6)
-        )
-      })
-      
-      
-      
+
       hidePageSpinner()
       model_trained(TRUE)
     })
@@ -504,6 +486,87 @@ server <- function(input, output, session) {
         model()
       })
     
+      
+      output$model_output_ui <- renderUI({
+        if (!training_started()) {
+          # Case 1: Nothing has happened yet – blank boxes
+          layout_columns(
+            value_box(
+              title = "Metryki",
+              fullscreen = TRUE,
+              p(""),
+              theme_color = "primary"
+            ),
+            value_box(
+              title = "Macierz trafności",
+              fullscreen = TRUE,
+              p(""),
+              theme_color = "secondary"
+            ),
+            value_box(
+              title = "Model",
+              fullscreen = TRUE,
+              p(""),
+              theme_color = "success"
+            ),
+            col_widths = c(12, 6, 6)
+          )
+        } else if (!model_trained()) {
+          # Case 2: Training in progress – show placeholders
+          layout_columns(
+            value_box(
+              title = "Metryki",
+              fullscreen = TRUE,
+              div(class = "placeholder-glow",
+                  div(class = "placeholder col-12", style = "height: 100px;")
+              ),
+              theme_color = "primary"
+            ),
+            value_box(
+              title = "Macierz trafności",
+              fullscreen = TRUE,
+              div(class = "placeholder-glow",
+                  div(class = "placeholder col-12", style = "height: 300px;")
+              ),
+              theme_color = "secondary"
+            ),
+            value_box(
+              title = "Model",
+              fullscreen = TRUE,
+              div(class = "placeholder-glow",
+                  div(class = "placeholder col-12", style = "height: 300px;")
+              ),
+              theme_color = "success"
+            ),
+            col_widths = c(12, 6, 6)
+          )
+        } else {
+          # Case 3: Training completed – show actual content
+          layout_columns(
+            value_box(
+              title = "Metryki",
+              fullscreen = TRUE,
+              uiOutput('metricsDT'),
+              theme_color = "primary"
+            ),
+            value_box(
+              title = "Macierz trafności",
+              fullscreen = TRUE,
+              plotOutput('confMatrix'),
+              theme_color = "secondary"
+            ),
+            value_box(
+              title = ifelse(input$model_type == "Random Forest", "Ważność zmiennych", "Drzewo decyzyjne"),
+              fullscreen = TRUE,
+              plotOutput('varImportance'),
+              theme_color = "success"
+            ),
+            col_widths = c(12, 6, 6)
+          )
+        }
+      })
+      
+      
       
       #####################################
       ############## PREDYKCJA ############
