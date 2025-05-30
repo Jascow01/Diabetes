@@ -234,7 +234,7 @@ custom_styles <- tags$style(HTML("
   }
   
   .navbar-nav > li > a {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    background: linear-gradient(90deg, #5270fe, #fd66c4);
     color: white !important;
     font-weight: 600;
     font-size: 16px;
@@ -263,7 +263,52 @@ custom_styles <- tags$style(HTML("
     .navbar-nav {
       display: flex;
       width: 100%;
+    }
+  
+  .navbar-brand {
+      display: flex;
+      justify-content: center;
+      align-items: center; /* Optional: to also center vertically if needed */
   }
+    
+    /* Remove padding/margin from the navbar container */
+  .navbar, .navbar > .container-fluid {
+    margin-bottom: 0 !important;
+    padding-bottom: 10 !important;
+  }
+
+  /* Reduce padding on navbar-brand (logo) */
+  .navbar-brand {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    margin-right: 1rem;
+  }
+
+    /* Ensure logo stays aligned */
+   .navbar-brand {
+    display: flex;
+    align-items: flex-end; /* Align contents to bottom */
+    height: 100%; /* Full navbar height */
+  }
+
+  .navbar-brand img {
+    width: 260px;
+    height: 100px;
+    margin: 0; /* reset margin */
+  }
+
+  /* Optional: reduce space below custom header buttons */
+  .layout-header {
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Optional: remove top margin on main content */
+  .main-content {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+    
+    
   .section-title {
     text-align: center;
     font-size: 24px;
@@ -327,7 +372,7 @@ custom_scripts <- tags$script(HTML("
 #===============================================================================
 
 page_navbar(
-  title = HTML('<img src="logo-main.png" alt="Diabetes Logo" style="height:40px; width:260px;">'),
+  title = HTML('<img src="logo-main.png" alt="Diabetes Logo" ">'),
   underline = TRUE,
   sidebar = sidebar_main,
   padding = 0,
