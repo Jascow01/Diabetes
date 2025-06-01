@@ -15,8 +15,14 @@ library(ranger)
 library(caret)
 
 
-
 library(vip)
+
+
+# AGENT
+library(shinychat)
+library(ellmer)
+
+#usethis::edit_r_environ()
 
 options(shiny.maxRequestSize = 30 * 1024^2)
 
@@ -639,6 +645,15 @@ server <- function(input, output, session) {
       })
       
       
-  
+  ##########################################
+  ###########   AGEBNT  ####################
+  ##########################################
+      
+      chat <- ellmer::chat_openai(system_prompt = "You're a trickster who answers in riddles")
+      
+      observeEvent(input$chat_user_input, {
+        stream <- chat$stream_async(input$chat_user_input)
+        chat_append("chat", stream)
+      })
   
 }

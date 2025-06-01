@@ -9,6 +9,9 @@ library(plotly)
 library(shinyWidgets)
 library(htmltools)
 
+library(shinychat)
+library(ellmer)
+
 #===============================================================================
 # TAB: Eksploracja - Podgląd danych
 #===============================================================================
@@ -33,16 +36,13 @@ tab_data_preview <- page_fillable(
 )
 
 
-
 #===============================================================================
-# TAB: Eksploracja - Analiza tekstu
-#===============================================================================
-
-
-#===============================================================================
-# TAB: Eksploracja - Wizualizacja
+# TAB: Eksploracja - Chat
 #===============================================================================
 
+chat <- page_fillable(
+  chat_ui("chat")
+)
 
 
 #===============================================================================
@@ -52,8 +52,8 @@ tab_data_preview <- page_fillable(
 exploration <- page_fillable(
   navset_card_underline(
     title = HTML("<span style='font-size:100%; font-weight:bold;'>Eksploracja Danych</span>"),
-    nav_panel("Ramka danych", tab_data_preview)
-    # nav_panel("Statystyki", tab_text_analysis)
+    nav_panel("Ramka danych", tab_data_preview),
+    nav_panel("Agent", chat)
     # nav_panel("Wizualizacja", tab_visualization)
   )
 )
