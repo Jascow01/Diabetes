@@ -8,7 +8,6 @@ library(pool)
 library(dplyr)
 library(dbplyr)
 library(tidymodels)
-library(shinycssloaders)
 library(rpart.plot)
 
 library(ranger)
@@ -124,7 +123,7 @@ server <- function(input, output, session) {
       df <- read.csv(input$csv_file$datapath)
       
       rv$data <- df                         # <-- Dane z CSV
-      rv$db_pool <- NULL                    # Blokujemy możliwość połączenia do bazy
+      rv$db_pool <- NULL                    
       rv$tables <- NULL
       rv$selected_table <- NULL
       
@@ -373,7 +372,6 @@ server <- function(input, output, session) {
         df[[target]] <- as.factor(df[[target]])
       }
       
-      showPageSpinner("Budowanie modelu...", color = "#f3969a")
       
       split <- initial_split(df, strata = target)
       train_data <- training(split)
@@ -381,10 +379,9 @@ server <- function(input, output, session) {
       
       rec <- recipe(as.formula(paste(target, "~ .")), data = train_data)
       
-      hidePageSpinner()
       
       if (input$model_type == "Random Forest") {
-        showPageSpinner("Tuning modelu...", color = "#f3969a")
+        
         model_spec <- rand_forest(trees = tune()) %>%
           set_mode("classification") %>%
           set_engine("ranger", importance = "impurity")
@@ -393,7 +390,7 @@ server <- function(input, output, session) {
           add_recipe(rec) %>%
           add_model(model_spec)
         
-      hidePageSpinner()
+      
         folds <- bootstraps(train_data, strata = !!sym(target), times = 5)
         grid <- grid_regular(trees(range = c(1,5)), levels = 3)
         
@@ -407,10 +404,10 @@ server <- function(input, output, session) {
         best_auc <- select_best(tuned, metric = "roc_auc")
         final <- finalize_workflow(wf, best_auc)
         
-        hidePageSpinner()
+       
         
       } else if (input$model_type == "Decision Tree") {
-        showPageSpinner("Tuning modelu...", color = "#f3969a")
+       
         model_spec <- decision_tree(cost_complexity = tune(), tree_depth = tune()) %>%
           set_mode("classification") %>%
           set_engine("rpart")
@@ -431,15 +428,14 @@ server <- function(input, output, session) {
         
         best_auc <- select_best(tuned, metric = "roc_auc")
         final <- finalize_workflow(wf, best_auc)
-        hidePageSpinner()
+       
       }
       
-      sentiment_final <- last_fit(final, split)
+      model_final <- last_fit(final, split)
       
-      showPageSpinner("Tworzenie wyników...", color = "#f3969a")
-      
+     
       output$metricsDT <- renderUI({
-        metrics <- sentiment_final %>%
+        metrics <- model_final %>%
           collect_metrics() %>%
           filter(.metric %in% c("accuracy", "roc_auc")) %>%
           select(.metric, .estimate)
@@ -454,7 +450,7 @@ server <- function(input, output, session) {
       })
       
       output$rocPlot <- renderPlot({
-        sentiment_final %>%
+        model_final %>%
           collect_predictions() %>%
           roc_curve(truth = outcome, .pred_1) %>% 
           autoplot()
@@ -463,7 +459,7 @@ server <- function(input, output, session) {
       
       
       output$confMatrix <- renderPlot({
-        sentiment_final %>%
+        model_final %>%
           collect_predictions() %>%
           conf_mat(!!sym(target), .pred_class) %>%
           autoplot(type = "heatmap")
@@ -483,7 +479,7 @@ server <- function(input, output, session) {
         }
       })
 
-      hidePageSpinner()
+     
       model_trained(TRUE)
     })
     
@@ -645,10 +641,13 @@ server <- function(input, output, session) {
       
       
   ##########################################
-  ###########   AGEBNT  ####################
+  ###########   AGENT  #####################D
   ##########################################
       
-      chat <- ellmer::chat_openai(system_prompt = "You're a trickster who answers in riddles",api_key = config::get("OPEN_AI_KEY"))
+
+      
+      chat <- ellmer::chat_openai(system_prompt = "You are a doctor of diabetes and you know all about it.",
+                                  api_key = config::get("OPEN_AI_KEY"))
       
       observeEvent(input$chat_user_input, {
         stream <- chat$stream_async(input$chat_user_input)
