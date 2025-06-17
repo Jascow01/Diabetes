@@ -646,12 +646,31 @@ server <- function(input, output, session) {
       
 
       
-      chat <- ellmer::chat_openai(system_prompt = "You are a doctor of diabetes and you know all about it.",
-                                  api_key = config::get("OPEN_AI_KEY"))
-      
       observeEvent(input$chat_user_input, {
+        
+        # Define system prompt dynamically
+        system_prompt <- if (is.null(rv$data)) {
+          "You are a diabetes expert. The user has not yet uploaded their data. Guide them to upload a dataset with health metrics relevant to diabetes prediction (e.g., glucose, BMI, age, etc.). User did not upload data yet, so in short anwser tell him to upload the data."
+        } else {
+          paste0(
+            "Inform a user that his data are available.",
+            "You are a doctor of diabetes and have access to a dataset uploaded by the user. ",
+            "Help analyze the data and provide medical insights based on its structure. ",
+            "Columns in the data include: ", paste(names(rv$data), collapse = ", "), ".",
+            "You can use this information about this dataset but user may ask about general information about diabetes."
+          )
+        }
+        
+        # Create a new chat instance with this prompt
+        chat <- ellmer::chat_openai(
+          system_prompt = system_prompt,
+          api_key = config::get("OPEN_AI_KEY")
+        )
+        
+        # Stream and append the response
         stream <- chat$stream_async(input$chat_user_input)
         chat_append("chat", stream)
       })
+      
   
 }
